@@ -13,7 +13,7 @@ import (
 	"github.com/praffn/btc/lib"
 )
 
-const version = "0.1.1"
+const version = "0.1.2"
 const defaultCurrency = "USD"
 
 ////////////////////////////////////////////////
