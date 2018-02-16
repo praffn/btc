@@ -36,7 +36,8 @@ func init() {
 }
 
 func main() {
-	// parse flags
+	// parse flags and read config
+	c := readConfig()
 	flag.Parse()
 	if *showVersion {
 		fmt.Println("btc v" + version)
@@ -49,6 +50,8 @@ func main() {
 		currencyEnv := os.Getenv("BTC_CURRENCY")
 		if len(currencyEnv) > 0 {
 			currency.Set(currencyEnv)
+		} else if c.currencySet {
+			currency.Set(c.currency)
 		} else {
 			currency.Set(defaultCurrency)
 		}
@@ -107,10 +110,16 @@ func main() {
 				fmt.Printf("%s%% since yesterday\n", strconv.FormatFloat(histRate/price.Rate, 'f', 3, 64))
 			}
 		}
-		if exchange.set {
-			gray.Printf("BTC %s ", exchange.String())
+		if exchange.set || c.exchangeSet {
+			var exch float64
+			if exchange.set {
+				exch = exchange.value
+			} else {
+				exch = c.exchange
+			}
+			gray.Printf("BTC %s ", strconv.FormatFloat(exch, 'f', -1, 64))
 			gray.Printf("⇢  ")
-			gray.Printf("%s %s\n", currency.String(), strconv.FormatFloat(price.Rate*exchange.value, 'f', 2, 64))
+			gray.Printf("%s %s\n", currency.String(), strconv.FormatFloat(price.Rate*exch, 'f', 2, 64))
 		}
 	}
 }
