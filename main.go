@@ -94,12 +94,12 @@ func main() {
 		price = resp.Price
 		err = resp.Err
 	}
+	s.Stop()
 	if err != nil {
 		red.Println("An error occured!")
 		gray.Println(err.Error())
 		os.Exit(1)
 	}
-	s.Stop()
 
 	floatString := strconv.FormatFloat(price.Rate, 'f', 2, 64)
 
