@@ -2,6 +2,7 @@ package lib
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 )
@@ -34,63 +35,93 @@ type coindeskHistoricalResponse struct {
 	Time map[string]string  `json:"time"`
 }
 
-func (c *coindesk) Fetch() (Price, error) {
+func (c *coindesk) Fetch(ch chan FetchResponse) {
 	// fetch json
 	url := makeCoindeskURL(c.currency)
+	log.Printf("Fetching JSON from CoinDesk: %s\n", url)
 	r, err := c.client.Get(url)
 	if err != nil {
-		return Price{}, err
+		log.Printf("Error fetching: %s\n", err.Error())
+		ch <- FetchResponse{Price{}, err}
+		return
 	}
+	log.Println("Successfully fetched JSON")
+	log.Println("Marshalling JSON")
 	// marshal body into coindeskResponse
 	var resp coindeskResponse
 	dec := json.NewDecoder(r.Body)
 	err = dec.Decode(&resp)
 	if err != nil {
-		return Price{}, err
+		log.Printf("Error marshalling JSON: %s\n", err.Error())
+		ch <- FetchResponse{Price{}, err}
+		return
 	}
 	// get bpi for currency
 	// (we are no being defensive, since bpi for currency
 	// should exist for the resource)
 	bpi := resp.BPI[c.currency]
-	// 2013-09-18T17:27:00+00:00
+
+	log.Println("Parsing date")
 	updated, err := time.Parse("2006-01-02T15:04:05+00:00", resp.Time["updatedISO"])
 	if err != nil {
-		return Price{}, err
+		log.Printf("Error parsing data: %s\n", err.Error())
+		ch <- FetchResponse{Price{}, err}
+		return
 	}
+	log.Println("Successfully parsed date")
+	log.Println("Successfully fetched price")
 	// return price
-	return Price{
-		Updated:  updated,
-		Rate:     bpi.Rate,
-		Currency: c.currency,
-	}, nil
+	ch <- FetchResponse{
+		Price{
+			Updated:  updated,
+			Rate:     bpi.Rate,
+			Currency: c.currency,
+		},
+		nil,
+	}
 }
 
-func (c *coindesk) FetchWithHistory() (Price, float64, error) {
-	price, err := c.Fetch()
-	if err != nil {
-		return Price{}, 0.0, err
+func (c *coindesk) FetchWithHistory(ch chan FetchWithHistoryResponse) {
+	pch := make(chan FetchResponse, 1)
+	log.Println("Getting price")
+	go c.Fetch(pch)
+	resp := <-pch
+	close(pch)
+	if resp.Err != nil {
+		log.Printf("Error getting price: %s\n", resp.Err.Error())
+		ch <- FetchWithHistoryResponse{Price{}, 0.0, resp.Err}
+		return
 	}
+	log.Println("Fetching historical data")
 	r, err := c.client.Get(makeHistoricalCoindeskURL(c.currency))
 	if err != nil {
-		return Price{}, 0.0, err
+		log.Printf("Error fetching historical data: %s\n", err.Error())
+		ch <- FetchWithHistoryResponse{Price{}, 0.0, err}
+		return
 	}
 
+	log.Println("Successfully fetched historical data")
+	log.Println("Marshalling historical data")
 	var histResp coindeskHistoricalResponse
 	dec := json.NewDecoder(r.Body)
 	err = dec.Decode(&histResp)
 	if err != nil {
-		return Price{}, 0.0, err
+		log.Printf("Error marshalling historical data: %s\n", err.Error())
+		ch <- FetchWithHistoryResponse{Price{}, 0.0, err}
+		return
 	}
+	log.Println("Successfully marshalled historical data")
 	var histRate float64
 	for _, rate := range histResp.BPI {
 		histRate = rate
 		break
 	}
-
-	return price, histRate, nil
+	log.Println("Succesfully fetched historical data, returning")
+	ch <- FetchWithHistoryResponse{resp.Price, histRate, err}
 }
 
 func NewCoindesk(currency string) Fetcher {
+	log.Printf("Creating new CoinDesk fetcher for currency %s\n", currency)
 	url := makeCoindeskURL(currency)
 	return &coindesk{
 		client: &http.Client{

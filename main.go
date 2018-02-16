@@ -8,6 +8,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/briandowns/spinner"
 
 	"github.com/fatih/color"
 	"github.com/praffn/btc/lib"
@@ -71,18 +74,32 @@ func main() {
 	var err error
 
 	red := color.New(color.FgRed, color.Bold)
+	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+	s.Writer = os.Stderr
+	s.Suffix = " Fetching price for " + currency.String()
+	s.Start()
 
 	fetcher := lib.NewCoindesk(strings.ToUpper(currency.String()))
 	if *difference {
-		price, histRate, err = fetcher.FetchWithHistory()
+		ch := make(chan lib.FetchWithHistoryResponse)
+		go fetcher.FetchWithHistory(ch)
+		resp := <-ch
+		price = resp.Price
+		histRate = resp.HistRate
+		err = resp.Err
 	} else {
-		price, err = fetcher.Fetch()
+		ch := make(chan lib.FetchResponse)
+		go fetcher.Fetch(ch)
+		resp := <-ch
+		price = resp.Price
+		err = resp.Err
 	}
 	if err != nil {
 		red.Println("An error occured!")
 		gray.Println(err.Error())
 		os.Exit(1)
 	}
+	s.Stop()
 
 	floatString := strconv.FormatFloat(price.Rate, 'f', 2, 64)
 
