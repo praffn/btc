@@ -38,6 +38,7 @@ var currency currencyFlag
 var shouldLog = flag.Bool("l", false, "show log output")
 var showVersion = flag.Bool("v", false, "show version")
 var simple = flag.Bool("s", false, "show simple")
+var difference = flag.Bool("d", true, "show difference since yesterday")
 
 func init() {
 	// setup custom type for flag parsing
@@ -65,10 +66,19 @@ func main() {
 
 	gray := color.New(color.FgHiBlack)
 
+	var price lib.Price
+	var histRate float64
+	var err error
+
+	red := color.New(color.FgRed, color.Bold)
+
 	fetcher := lib.NewCoindesk(strings.ToUpper(currency.String()))
-	price, err := fetcher.Fetch()
+	if *difference {
+		price, histRate, err = fetcher.FetchWithHistory()
+	} else {
+		price, err = fetcher.Fetch()
+	}
 	if err != nil {
-		red := color.New(color.FgRed, color.Bold)
 		red.Println("An error occured!")
 		gray.Println(err.Error())
 		os.Exit(1)
@@ -83,5 +93,15 @@ func main() {
 		gray.Printf("Updated: %s\n", price.Updated.Format("2 Jan 2006 at 15:04:05"))
 		fmt.Printf("%s: ", price.Currency)
 		green.Printf("%s\n", floatString)
+		if *difference {
+			// if histRate is lower than show up percentage
+			if histRate < price.Rate {
+				green.Printf("⇡ ")
+				fmt.Printf("%s%% since yesterday\n", strconv.FormatFloat(price.Rate/histRate, 'f', 3, 64))
+			} else {
+				red.Printf("⇣ ")
+				fmt.Printf("%s%% since yesterday\n", strconv.FormatFloat(histRate/price.Rate, 'f', 3, 64))
+			}
+		}
 	}
 }
