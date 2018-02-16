@@ -22,30 +22,18 @@ const defaultCurrency = "USD"
 ////////////////////////////////////////////////
 // Quick type to support environment currency //
 ////////////////////////////////////////////////
-type currencyFlag struct {
-	set   bool
-	value string
-}
-
-func (cf *currencyFlag) Set(v string) error {
-	cf.value = v
-	cf.set = true
-	return nil
-}
-
-func (cf *currencyFlag) String() string {
-	return cf.value
-}
 
 var currency currencyFlag
+var exchange exchangeFlag
 var shouldLog = flag.Bool("l", false, "show log output")
 var showVersion = flag.Bool("v", false, "show version")
 var simple = flag.Bool("s", false, "show simple")
 var difference = flag.Bool("d", true, "show difference since yesterday")
 
 func init() {
-	// setup custom type for flag parsing
+	// setup custom types for flag parsing
 	flag.Var(&currency, "c", "currency to fetch")
+	flag.Var(&exchange, "x", "exchange")
 }
 
 func main() {
