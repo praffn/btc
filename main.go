@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -67,7 +66,7 @@ func main() {
 	s.Suffix = " Fetching price for " + currency.String()
 	s.Start()
 
-	fetcher := lib.NewCoindesk(strings.ToUpper(currency.String()))
+	fetcher := lib.NewCoindesk(currency.String())
 	if *difference {
 		ch := make(chan lib.FetchWithHistoryResponse)
 		go fetcher.FetchWithHistory(ch)
@@ -107,6 +106,11 @@ func main() {
 				red.Printf("⇣ ")
 				fmt.Printf("%s%% since yesterday\n", strconv.FormatFloat(histRate/price.Rate, 'f', 3, 64))
 			}
+		}
+		if exchange.set {
+			gray.Printf("BTC %s ", exchange.String())
+			gray.Printf("⇢  ")
+			gray.Printf("%s %s\n", currency.String(), strconv.FormatFloat(price.Rate*exchange.value, 'f', 2, 64))
 		}
 	}
 }

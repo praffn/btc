@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 type currencyFlag struct {
@@ -11,7 +12,7 @@ type currencyFlag struct {
 }
 
 func (cf *currencyFlag) Set(v string) error {
-	cf.value = v
+	cf.value = strings.ToUpper(v)
 	cf.set = true
 	return nil
 }
